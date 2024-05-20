@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode Scanner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script>
+    	var barcodes = {
+		"701010101": "https://www.youtube.com/video/url",
+		"123123123": "https://www.youtube.com/video2/url",
+		"0705632441947": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+	};
+    </script>
+    
+    <style>
+    #holder{
+    	position: relative;
+    }
+        #interactive {
+            width: 100%;
+            height: auto;
+            position: absolute;
+            display: none;
+            top: 0;
+            left: 0;
+        }
+        #interactive video{
+        	position: absolute;
+        	top: 0;
+        	left: 0;
+        	z-index: 1;
+        }
+        #interactive canvas{
+        	position: absolute;
+        	top: 0;
+        	left: 0;
+        	z-index: 10;
+        }
+        #lastframe{
+        	position: absolute;
+        	top: 0;
+        	left: 0;
+        	display: none;
+        	z-index: 5;
+        }
+        /* Modal styles */
+        .modal {
+            display: block; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            padding-top: 100px; /* Location of the box */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            text-align: center;
+        }
+        .modal button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .modal button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <ul>
+    	<li><a href="/">Welcome</a></li>
+    	<li><a href="/scanner.html">Scanner</a></li>
+    	<li><a href="/faq.html">FAQ</a></li>
+    </ul>
+    <h1>Barcode Scanner</h1>
+    <div id="holder">
+	    <canvas id="lastframe"></canvas>
+	    <div id="interactive" class="viewport"></div>
+	    
+    </div>
+    <!-- The Modal -->
+    <div id="permissionModal" class="modal">
+        <div class="modal-content">
+            <h2>Camera Permission Request</h2>
+            <p>We need access to your camera to scan barcodes.</p>
+            <button id="grantPermissionButton">Grant Permission</button>
+        </div>
+    </div>
+
+    <script>
+    	var isLoaded = false; 
+        document.addEventListener('DOMContentLoaded', function() {
+            const permissionModal = document.getElementById('permissionModal');
+            const grantPermissionButton = document.getElementById('grantPermissionButton');
+            const interactive = document.getElementById('interactive');
+            const lastFrameCanvas = document.getElementById('lastframe');
+            const lastFrameCtx = lastFrameCanvas.getContext('2d');
+            
+            grantPermissionButton.addEventListener('click', function() {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(stream) {
+                        // Camera permission granted, hide the modal
+                        permissionModal.style.display = 'none';
+                        interactive.style.display = 'block';
+                        stream.getTracks().forEach(track => track.stop()); // Stop the stream as we only needed the permission
+
+                        // Start the barcode scanner
+                        startBarcodeScanner();
+                    })
+                    .catch(function(err) {
+                        console.error('Camera permission denied', err);
+                        alert('Camera permission is required to use the barcode scanner.');
+                    });
+            });
+
+            function startBarcodeScanner() {
+	         if (!isLoaded) { isLoaded = true; }else{ console.log("already loaded"); return; }
+                Quagga.init({
+                    inputStream : {
+                        name : "Live",
+                        type : "LiveStream",
+                        target: document.querySelector('#interactive'), 
+                        constraints: {
+                            width: { min: 640 },
+                            height: { min: 480 },
+                            facingMode: "environment",
+                            aspectRatio: { min: 1, max: 2 }
+                        }
+                    },
+                    decoder : {
+                        readers : [
+                            "code_128_reader",
+                            "ean_reader",
+                            "ean_8_reader",
+                            "code_39_reader",
+                            "code_39_vin_reader",
+                            "codabar_reader",
+                            "upc_reader",
+                            "upc_e_reader",
+                            "i2of5_reader"
+                        ]
+                    },
+                    locate: true, // try to locate the barcode in the image
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    }
+                }, function(err) {
+                    if (err) {
+                        console.error(err);
+                        return;
+                    }
+                    Quagga.start();
+                });
+
+                Quagga.onDetected(function(data) {
+                    var code = data.codeResult.code;
+                    console.log("Detected barcode: ", code);
+                    
+                    // Draw the last frame on the canvas
+                    const video = document.querySelector('#interactive video');
+                    lastFrameCanvas.width = video.videoWidth;
+                    lastFrameCanvas.height = video.videoHeight;
+                    lastFrameCtx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+
+		     video.style.display = 'none';
+                    lastFrameCanvas.style.display = 'block';
+                    Quagga.stop();  // Stop the scanner after a successful scan
+
+                    if (barcodes[code]){
+			 window.location.href = barcodes[code];
+                    }else{
+                    	window.location.href = "/create.html?barcode="+code;
+                    }
+                });
+
+                Quagga.onProcessed(function(result) {
+                    var drawingCtx = Quagga.canvas.ctx.overlay,
+                        drawingCanvas = Quagga.canvas.dom.overlay;
+
+                    if (result) {
+                        if (result.boxes) {
+                            drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
+                            result.boxes.filter(function (box) {
+                                return box !== result.box;
+                            }).forEach(function (box) {
+                                Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
+                            });
+                        }
+
+                        if (result.box) {
+                            Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
+                        }
+
+                        if (result.codeResult && result.codeResult.code) {
+                            Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

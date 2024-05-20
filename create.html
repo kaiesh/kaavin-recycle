@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode Scanner</title>
+    <script>
+        // Function to get URL parameters
+        function getUrlParam(prop) {
+            // Get the query string part of the URL
+            const queryString = window.location.search;
+            
+            // Parse the query string
+            const urlParams = new URLSearchParams(queryString);
+            
+            // Retrieve the values of specific parameters
+            const param1 = urlParams.get(prop);
+            
+            return param1;
+        }
+     </script>
+</head>
+<body>
+    <ul>
+    	<li><a href="/">Welcome</a></li>
+    	<li><a href="/scanner.html">Scanner</a></li>
+    	<li><a href="/faq.html">FAQ</a></li>
+    </ul>
+    <h1>We don't have a video for that yet!</h1>
+    <p>Please record a video on how to recycle that product and then send me a link to it by clicking <a id="emaillink" href="mailto:protonpass@email.com?subject=I%20made%20a%20video%20for%20&body=You%20can%20find%20the%video%at:">here</a>
+    
+    <script>
+    	document.getElementById("emaillink").href = "mailto:protonpass@email.com?subject=I%20made%20a%20video%20for%20"+getUrlParam("barcode")+"&body=You%20can%20find%20the%20video%20at:";
+    </script>
+</body>
+</html>
